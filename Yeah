@@ -1,0 +1,48 @@
+name: Publish with SLSA Provenance
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      digests: ${{ steps.hash.outputs.digests }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Simulate Publish - Copy Site Files
+        run: |
+          mkdir -p dist
+          cp kiyotaka.html dist/index.html
+          cp ww.css dist/
+          echo "Site files prepared for publishing."
+
+      - name: Generate SHA256 digests
+        id: hash
+        run: |
+          set -euo pipefail
+          files=$(ls dist/*)
+          echo "digests=$(sha256sum $files | base64 -w0)" >> $GITHUB_OUTPUT
+
+  provenance:
+    needs: build
+    permissions:
+      contents: write
+      id-token: write
+      actions: read
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3_publish.yml@v1.4.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.digests }}
+      upload-assets: true
