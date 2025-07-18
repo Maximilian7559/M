@@ -1,4 +1,4 @@
- Provenance
+name: Publish with SLSA Provenance
 
 on:
   push:
@@ -8,10 +8,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write
-  contents: read
-  actions: read
   contents: write
+  id-token: write
+  actions: read
 
 jobs:
   build:
@@ -20,31 +19,31 @@ jobs:
       digests: ${{ steps.hash.outputs.digests }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build your artifacts
+      - name: Simulate Publish - Copy Site Files
         run: |
-          echo "Building artifacts..."
-          # Replace these example artifacts with your actual build commands
-          echo "artifact1" > artifact1.txt
-          echo "artifact2" > artifact2.txt
+          mkdir -p dist
+          cp kiyotaka.html dist/index.html
+          cp ww.css dist/
+          echo "Site files prepared for publishing."
 
-      - name: Generate SHA256 hashes for artifacts
+      - name: Generate SHA256 digests
         id: hash
         run: |
           set -euo pipefail
-          files=$(ls artifact*.txt)
-          echo "digests=$(sha256sum $files | base64 -w0)" >> "${GITHUB_OUTPUT}"
+          files=$(ls dist/*)
+          sha_output=$(sha256sum $files | base64 -w0)
+          echo "digests=$sha_output" >> $GITHUB_OUTPUT
 
   provenance:
     needs: build
     permissions:
-      actions: read
-      id-token: write
       contents: write
+      id-token: write
+      actions: read
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.4.0
     with:
       base64-subjects: ${{ needs.build.outputs.digests }}
-      upload-assets: true  # Upload provenance file as release asset
-
+      upload-assets: true
